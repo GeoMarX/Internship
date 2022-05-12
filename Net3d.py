@@ -59,4 +59,4 @@ class SpectralConv3(hk.Module):
 
     
 
-    return out_ft.reshape(64,64,33)
+    return out_ft
