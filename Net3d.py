@@ -67,6 +67,12 @@ class SpectralConv3(hk.Module):
 
 
 class FNO3d(hk.Module):
+  '''
+  NN with Spectral Conv3D layers
+  Takes as input a 3D array
+  
+  '''
+  
     def __init__(self,width,modes1=8,modes2=8,modes3=8, padding=6,name="PaperNetwork"):
         
         super().__init__(name=name)
@@ -86,10 +92,7 @@ class FNO3d(hk.Module):
         self.w4 = hk.Conv3D(3,  1)
         
     def __call__(self,pot_k):
-        
-#         pot_k = pot_k + Inside(name="L1") (pot_k)
-        
-        
+      
         
         x=pot_k
         
@@ -177,9 +180,7 @@ class FNO3d(hk.Module):
 
         final=1
         x=x.reshape(3,dim1,dim2,dim3,final) 
-#         flat = hk.Flatten(preserve_dims=-3)
-#         print("flat",flat(x).shape)
-#         x=flat(x).shape
+
         
         mod = hk.Reshape(output_shape=(-1, final))
         x=mod(x)
