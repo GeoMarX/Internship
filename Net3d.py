@@ -67,13 +67,7 @@ class SpectralConv3(hk.Module):
 
 
 class FNO3d(hk.Module):
-  '''
-  NN with Spectral Conv3D layers
-  Takes as input a 3D array
-  
-  '''
-  
-    def __init__(self,width,modes1=8,modes2=8,modes3=8, padding=6,name="PaperNetwork"):
+    def __init__(self,width,modes1=8,modes2=8,modes3=8, padding=3,name="PaperNetwork"):
         
         super().__init__(name=name)
         self.modes1= modes1
@@ -92,97 +86,109 @@ class FNO3d(hk.Module):
         self.w4 = hk.Conv3D(3,  1)
         
     def __call__(self,pot_k):
-      
-        
+
+        start_p=int(self.padding)
+        end_p=-start_p
         x=pot_k
-        
-        x = jax.numpy.pad(x, [0,self.padding],mode='wrap')
+        #print("Start",x.shape)
         dim1,dim2,dim3=x.shape
         #Fourier Space
         x1 = jnp.fft.rfftn(x,s=(dim1,dim2,dim3))
-        x1=x1.reshape(1,1,dim1,dim2,int(dim3/2+1))
+        x1 = x1[jax.numpy.newaxis,jax.numpy.newaxis,...]
         x1 = self.conv0(x1)
-        x1=x1.reshape(self.width,dim1,dim2,int(dim3/2+1))
-        x1=jnp.fft.irfftn(x1,s=(dim1,dim2,dim3))
-        
-        #Real Space
-        x=x.reshape(dim1,dim2,dim3,1)
-        x2 = self.w0(x)
-        x2=x2.reshape(1,self.width,dim1,dim2,dim3)
-        # print("Fourier shape: ", x1.shape ,"Conv3d shape: ", x2.shape)
-        x = x1 + x2
-        x = jax.nn.gelu(x)
-        
-        
-        #Fourier Space
-        x1 = jnp.fft.rfftn(x,s=(dim1,dim2,dim3))
-        x1 = x1.reshape(1,self.width,dim1,dim2,int(dim3/2+1))
-        x1 = self.conv1(x1)
-        x1 = x1.reshape(self.width,dim1,dim2,int(dim3/2+1))
+        x1 = np.squeeze(x1, axis=0)
         x1 = jnp.fft.irfftn(x1,s=(dim1,dim2,dim3))
+        #print("X1",x1.shape)
         
+        
+
+
+        x = jax.numpy.pad(x, ((self.padding, self.padding), (self.padding, self.padding), (self.padding, self.padding)),mode='wrap')
+        #print("Xpad",x.shape)
+        
+
         #Real Space
-        x = x.reshape(dim1,dim2,dim3,self.width)
-        x2= self.w1(x)
-        x2= x2.reshape(1,self.width,dim1,dim2,dim3)
-        # print("Fourier shape: ", x1.shape ,"Conv3d shape: ", x2.shape)
+        x = x[...,jax.numpy.newaxis]
+        x2 = self.w0(x)
+        x2 = jax.numpy.transpose(x2, (3,0,1,2))
+        x2= x2[:,start_p:end_p,start_p:end_p,start_p:end_p]
+        #print("Xpadend",x2.shape)
+
         x = x1 + x2
         x = jax.nn.gelu(x)
-        
-        
-        # # #Fourier Space
-        # x1 = jnp.fft.rfftn(x,s=(dim1,dim2,dim3))
-        # x1 = x1.reshape(1,self.width,dim1,dim2,int(dim3/2+1))
-        # x1 = self.conv2(x1)
-        # x1 = x1.reshape(self.width,dim1,dim2,int(dim3/2+1))
-        # x1 = jnp.fft.irfftn(x1,s=(dim1,dim2,dim3))
-        
-        # #Real Space
-        # x = x.reshape(dim1,dim2,dim3,self.width)
-        # x2= self.w2(x)
-        # x2= x2.reshape(1,self.width,dim1,dim2,dim3)
-        # # print("Fourier shape: ", x1.shape ,"Conv3d shape: ", x2.shape)
-        # x = x1 + x2
-        # x = jax.nn.gelu(x)
-        
-        
+        #print(x.shape)
+
+
+
         # #Fourier Space
         # x1 = jnp.fft.rfftn(x,s=(dim1,dim2,dim3))
-        # x1 = x1.reshape(1,self.width,dim1,dim2,int(dim3/2+1))
-        # x1 = self.conv3(x1)
-        # x1 = x1.reshape(self.width,dim1,dim2,int(dim3/2+1))
-        # x1 = jnp.fft.irfftn(x1,s=(dim1,dim2,dim3))
-        
+        # x1 = x1[jax.numpy.newaxis,...]
+        # x1 = self.conv1(x1)
+        # x1=np.squeeze(x1, axis=0)
+        # x1=jnp.fft.irfftn(x1,s=(dim1,dim2,dim3))
+        # print(x1.shape)
+
+
+        # x = jax.numpy.pad(x, ((self.padding, self.padding), (self.padding, self.padding), (self.padding, self.padding)),mode='wrap')
         # #Real Space
-        # x = x.reshape(dim1,dim2,dim3,self.width)
-        # x2= self.w3(x)
-        # x2= x2.reshape(1,self.width,dim1,dim2,dim3)
-        # # print("Fourier shape: ", x1.shape ,"Conv3d shape: ", x2.shape)
+        # x=jax.numpy.transpose(x, (1,2,3,0))
+        # x2 = self.w1(x)
+        # print(x2.shape)
+        # x2=jax.numpy.transpose(x2, (3,0,1,2))
+        # x2= x2[:,start_p:end_p,start_p:end_p,start_p:end_p]
         # x = x1 + x2
         # x = jax.nn.gelu(x)
+        # print(x.shape)
 
-        x=x.reshape(self.width,dim1,dim2,dim3)
-        x = x[ :-self.padding, :-self.padding, :-self.padding, :-self.padding]
-
+        
+        #x= x[:-self.padding,:-self.padding,:-self.padding,:-self.padding]
     
-        dim1=dim1-self.padding
-        dim2=dim2-self.padding
-        dim3=dim3-self.padding
+#         dim1=dim1-self.padding
+#         dim2=dim2-self.padding
+#         dim3=dim3-self.padding
 
         #Final Convolution
-        x=x.reshape(dim1,dim2,dim3,self.width-self.padding)
+
+        x=jax.numpy.transpose(x, (1,2,3,0))
         x = self.w4(x)
-        #x=x.reshape(1,1,64,64,64)
-        # print("Before: ", x.shape)
+        #print(x.shape)
+    
         
+        return x
+
+
+
+class ComplexSpectral(hk.Module):
+
+    def __init__(self,width,modes1=8,modes2=8,modes3=8, padding=3,name="PaperNetwork"):
+        
+        super().__init__(name=name)
+        self.modes1= modes1
+        self.modes2= modes2
+        self.modes3= modes3
+        self.width = width
+        self.padding=6
+        self.conv0 = SpectralConv3(self.width, self.width, self.modes1, self.modes2, self.modes3, name='l0')
+        self.conv1 = SpectralConv3(self.width, self.width, self.modes1, self.modes2, self.modes3, name='l1')
+        self.conv2 = SpectralConv3(self.width, self.width, self.modes1, self.modes2, self.modes3, name='l2')
+        self.conv3 = SpectralConv3(self.width, self.width, self.modes1, self.modes2, self.modes3, name='l3')
 
         
+    def __call__(self,pot_k):
 
-        final=1
-        x=x.reshape(3,dim1,dim2,dim3,final) 
 
+        #print("Start",x.shape)
+        dim1,dim2,dim3=x.shape
+        #Fourier Space
+        x1 = jnp.fft.rfftn(x,s=(dim1,dim2,dim3))
+        x1 = x1[jax.numpy.newaxis,jax.numpy.newaxis,...]
+        x1 = self.conv0(x1)
+        x1 = np.squeeze(x1, axis=0)
+ 
+        x = jax.nn.gelu(x)
+
+        #Another Spectral 
+        #......
         
-        mod = hk.Reshape(output_shape=(-1, final))
-        x=mod(x)
-        #print(mod(x).shape)
-        return x.reshape(dim1*dim2*dim3,3)
+        return x
+  
