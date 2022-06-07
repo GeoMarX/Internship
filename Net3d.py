@@ -168,27 +168,35 @@ class ComplexSpectral(hk.Module):
         self.modes3= modes3
         self.width = width
         self.padding=6
-        self.conv0 = SpectralConv3(self.width, self.width, self.modes1, self.modes2, self.modes3, name='l0')
-        self.conv1 = SpectralConv3(self.width, self.width, self.modes1, self.modes2, self.modes3, name='l1')
-        self.conv2 = SpectralConv3(self.width, self.width, self.modes1, self.modes2, self.modes3, name='l2')
-        self.conv3 = SpectralConv3(self.width, self.width, self.modes1, self.modes2, self.modes3, name='l3')
+        self.conv0 = SpectralConv3(1, self.width, self.modes1, self.modes2, self.modes3, name='l0')
+        self.conv1 = SpectralConv3(self.width, 1, self.modes1, self.modes2, self.modes3, name='l1')
+        # self.conv2 = SpectralConv3(self.width, self.width, self.modes1, self.modes2, self.modes3, name='l2')
+        # self.conv3 = SpectralConv3(self.width, self.width, self.modes1, self.modes2, self.modes3, name='l3')
 
         
-    def __call__(self,pot_k):
+    def __call__(self,x):
 
-
+        
         #print("Start",x.shape)
+        
         dim1,dim2,dim3=x.shape
         #Fourier Space
-        x1 = jnp.fft.rfftn(x,s=(dim1,dim2,dim3))
-        x1 = x1[jax.numpy.newaxis,jax.numpy.newaxis,...]
+        print(x.shape)
+        x1 = x[jax.numpy.newaxis,jax.numpy.newaxis,...]
         x1 = self.conv0(x1)
         x1 = np.squeeze(x1, axis=0)
- 
-        x = jax.nn.gelu(x)
-
-        #Another Spectral 
-        #......
+        x1=jnp.fft.irfftn(x1,s=(dim1,dim2,dim3+31))
+        print(x1.shape)
+        x = jax.nn.relu(x1)
+        print(x.shape)
         
-        return x
-  
+        #Another Spectral 
+        x1 = jnp.fft.rfftn(x,s=(dim1,dim2,dim3+31))
+        x1 = x1[jax.numpy.newaxis,...]
+        x1 = self.conv1(x1)
+        #x1=jnp.fft.irfftn(x1,s=(dim1,dim2,dim3))
+        x1 = np.squeeze(x1, axis=0)
+        #x = jax.nn.relu(x1)
+        print(x1.shape)
+        
+        return x1
